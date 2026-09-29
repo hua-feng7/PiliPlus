@@ -312,3 +312,29 @@ foreach ($patch in $patches_cupertino) {
         throw "$LASTEXITCODE"
     }
 }
+
+Set-Location $env:GITHUB_WORKSPACE
+
+if ($platform.ToLower() -eq "ios") {
+    Write-Host "Setting up media_kit_libs_ios_video with FFmpeg 8.1.3 + AV1 VideoToolbox..."
+    $LibsIosDir = "$env:GITHUB_WORKSPACE/libs/ios/media_kit_libs_ios_video/ios"
+    if (Test-Path $LibsIosDir) {
+        Set-Location $LibsIosDir
+        make
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to make media_kit_libs_ios_video: $LASTEXITCODE"
+        }
+        $avcodecBinary = "$LibsIosDir/Frameworks/Avcodec.xcframework/ios-arm64/Avcodec.framework/Avcodec"
+        if (Test-Path $avcodecBinary) {
+            $hasAv1Vt = strings $avcodecBinary | Select-String "av1_videotoolbox"
+            Write-Host "AV1 VideoToolbox Verification in Avcodec.framework: $hasAv1Vt"
+            if (-not $hasAv1Vt) {
+                throw "FATAL: av1_videotoolbox NOT found in Avcodec.framework!"
+            }
+        } else {
+            throw "FATAL: Avcodec binary not found at $avcodecBinary"
+        }
+        Set-Location $env:GITHUB_WORKSPACE
+    }
+}
+
