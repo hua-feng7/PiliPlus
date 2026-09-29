@@ -8,6 +8,7 @@ import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/widgets/ordered_multi_select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
+import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/audio_output_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/hwdec_type.dart';
 import 'package:PiliPlus/utils/filtering_text.dart';
@@ -23,12 +24,13 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import 'package:material_ui/material_ui.dart';
 
 List<SettingsModel> get videoSettings => [
-  const SwitchModel(
+  SwitchModel(
     title: '开启硬解',
     subtitle: '以较低功耗播放视频，若异常卡死请关闭',
-    leading: Icon(Icons.flash_on_outlined),
+    leading: const Icon(Icons.flash_on_outlined),
     setKey: SettingBoxKey.enableHA,
     defaultVal: true,
+    onChanged: (_) => PlPlayerController.instance?.updateHwDec(),
   ),
   const SwitchModel(
     title: '免登录1080P',
@@ -176,6 +178,13 @@ List<SettingsModel> get videoSettings => [
     leading: const Icon(Icons.memory_outlined),
     getSubtitle: () => '当前：${Pref.hardwareDecoding}（此项即mpv的--hwdec）',
     onTap: _showHwDecDialog,
+  ),
+  NormalModel(
+    title: '硬解编码白名单',
+    leading: const Icon(Icons.code_outlined),
+    getSubtitle: () =>
+        '当前：${Pref.hwdecCodecs}（此项即mpv的--hwdec-codecs，all允许AV1等所有格式硬解）',
+    onTap: _showHwDecCodecsDialog,
   ),
 ];
 
@@ -457,10 +466,42 @@ Future<void> _showHwDecDialog(
     ),
   );
   if (res != null && res.isNotEmpty) {
+    final value = res.join(',');
     await GStorage.setting.put(
       SettingBoxKey.hardwareDecoding,
-      res.join(','),
+      value,
     );
+    PlPlayerController.instance?.updateHwDec(value);
+    setState();
+  }
+}
+
+Future<void> _showHwDecCodecsDialog(
+  BuildContext context,
+  VoidCallback setState,
+) async {
+  final res = await showDialog<List<String>>(
+    context: context,
+    builder: (context) => OrderedMultiSelectDialog<String>(
+      title: '硬解编码白名单 (hwdec-codecs)',
+      initValues: Pref.hwdecCodecs.split(','),
+      values: const {
+        'all': 'all\n允许所有支持的编码格式硬解（包含 AV1、HEVC、H.264 等）',
+        'av1': 'av1\nAV1 (A17 Pro/A18 Pro/A20 Pro及现代GPU)',
+        'hevc': 'hevc\nHEVC / H.265',
+        'h264': 'h264\nAVC / H.264',
+        'vp9': 'vp9\nVP9',
+        'vp8': 'vp8\nVP8',
+      },
+    ),
+  );
+  if (res != null && res.isNotEmpty) {
+    final value = res.contains('all') ? 'all' : res.join(',');
+    await GStorage.setting.put(
+      SettingBoxKey.hwdecCodecs,
+      value,
+    );
+    PlPlayerController.instance?.updateHwDec();
     setState();
   }
 }

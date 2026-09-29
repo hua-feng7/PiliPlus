@@ -46,5 +46,7 @@ enum HwDecType {
       ? kDebugMode
             ? autoSafe.hwdec
             : [mediacodec.hwdec, autoSafe.hwdec].join(',')
-      : auto.hwdec;
+      : (Platform.isIOS || Platform.isMacOS)
+            ? [videotoolboxCopy.hwdec, videotoolbox.hwdec, autoSafe.hwdec].join(',')
+            : autoSafe.hwdec;
 }

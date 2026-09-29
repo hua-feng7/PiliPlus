@@ -266,6 +266,11 @@ abstract final class Pref {
     defaultValue: HwDecType.kHwdec,
   );
 
+  static String get hwdecCodecs => _setting.get(
+    SettingBoxKey.hwdecCodecs,
+    defaultValue: 'all',
+  );
+
   static String get videoSync =>
       _setting.get(SettingBoxKey.videoSync, defaultValue: 'display-resample');
 

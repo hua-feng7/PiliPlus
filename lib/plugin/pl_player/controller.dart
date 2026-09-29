@@ -365,7 +365,20 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   late int? cacheVideoQa = PlatformUtils.isMobile ? null : Pref.defaultVideoQa;
   late int cacheAudioQa = Pref.defaultAudioQa;
   bool enableHeart = true;
-  late final String? hwdec = Pref.enableHA ? Pref.hardwareDecoding : null;
+  String? get hwdec => Pref.enableHA ? Pref.hardwareDecoding : null;
+  String get hwdecCodecs => Pref.hwdecCodecs;
+
+  void updateHwDec([String? value]) {
+    final targetHwdec = value ?? hwdec;
+    if (videoPlayerController case NativePlayer player) {
+      if (Pref.enableHA && targetHwdec != null) {
+        player.setProperty('hwdec-codecs', hwdecCodecs);
+        player.setProperty('hwdec', targetHwdec);
+      } else {
+        player.setProperty('hwdec', 'no');
+      }
+    }
+  }
 
   late final progressType = Pref.btmProgressBehavior;
   late final enableQuickDouble = Pref.enableQuickDouble;
@@ -723,12 +736,17 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   Future<Player> _initPlayer() async {
     assert(_videoPlayerController == null);
+    final currentHwdec = hwdec;
     final opt = {
       'video-sync': Pref.videoSync,
       if (Platform.isAndroid) 'ao': Pref.audioOutput,
       'volume':
           (PlatformUtils.isMobile ? Pref.playerVolume : volume.value * 100)
               .toString(),
+      if (Pref.enableHA) ...{
+        'hwdec-codecs': hwdecCodecs,
+        if (currentHwdec != null) 'hwdec': currentHwdec,
+      },
     };
     final autosync = Pref.autosync;
     if (autosync != '0') {
@@ -747,11 +765,18 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     _videoController = await VideoController.create(
       player,
       configuration: VideoControllerConfiguration(
-        enableHardwareAcceleration: hwdec != null,
+        enableHardwareAcceleration: currentHwdec != null,
         androidAttachSurfaceAfterVideoParameters: false,
-        hwdec: hwdec,
+        hwdec: currentHwdec,
       ),
     );
+
+    if (Pref.enableHA) {
+      player.setProperty('hwdec-codecs', hwdecCodecs);
+      if (currentHwdec != null) {
+        player.setProperty('hwdec', currentHwdec);
+      }
+    }
 
     player.setMediaHeader(userAgent: BrowserUa.pc, referer: HttpString.baseUrl);
 
@@ -787,6 +812,12 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       _videoPlayerController = player;
       if (isAnim && superResolutionType.value != .disable) {
         await setShader();
+      }
+    } else if (Pref.enableHA) {
+      final currentHwdec = hwdec;
+      player.setProperty('hwdec-codecs', hwdecCodecs);
+      if (currentHwdec != null) {
+        player.setProperty('hwdec', currentHwdec);
       }
     }
 
