@@ -140,7 +140,7 @@ class _StatsOverlayState extends State<StatsOverlay> {
             style: TextStyle(
               color: valueColor ?? Colors.white,
               fontSize: 11,
-              fontWeight: FontWeight.w640,
+              fontWeight: FontWeight.w600,
               fontFamily: 'monospace',
             ),
           ),
