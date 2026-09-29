@@ -271,6 +271,11 @@ abstract final class Pref {
     defaultValue: 'all',
   );
 
+  static bool get showStats => _setting.get(
+    SettingBoxKey.showStats,
+    defaultValue: false,
+  );
+
   static String get videoSync =>
       _setting.get(SettingBoxKey.videoSync, defaultValue: 'display-resample');
 

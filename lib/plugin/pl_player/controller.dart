@@ -119,6 +119,14 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   final RxBool controlsLock = false.obs;
 
+  late final RxBool showStats = Pref.showStats.obs;
+
+  void toggleStats([bool? value]) {
+    final next = value ?? !showStats.value;
+    showStats.value = next;
+    GStorage.setting.put(SettingBoxKey.showStats, next);
+  }
+
   final RxBool isFullScreen = false.obs;
   bool isLive = false;
 

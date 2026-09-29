@@ -775,13 +775,30 @@ class HeaderControlState extends State<HeaderControl>
                     leading: const Icon(Icons.download_outlined, size: 20),
                     title: const Text('保存字幕', style: titleStyle),
                   ),
-                if (plPlayerController.videoPlayerController case final player?)
+                if (plPlayerController.videoPlayerController case final player?) ...[
+                  ListTile(
+                    dense: true,
+                    title: const Text('实时性能浮窗', style: titleStyle),
+                    leading: const Icon(Icons.analytics_outlined, size: 20),
+                    trailing: Obx(
+                      () => Switch(
+                        value: plPlayerController.showStats.value,
+                        onChanged: (val) {
+                          plPlayerController.toggleStats(val);
+                        },
+                      ),
+                    ),
+                    onTap: () {
+                      plPlayerController.toggleStats();
+                    },
+                  ),
                   ListTile(
                     dense: true,
                     title: const Text('播放信息', style: titleStyle),
                     leading: const Icon(Icons.info_outline, size: 20),
                     onTap: () => showPlayerInfo(context, player: player),
                   ),
+                ],
                 ListTile(
                   dense: true,
                   onTap: () {

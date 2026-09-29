@@ -49,6 +49,7 @@ import 'package:PiliPlus/plugin/pl_player/widgets/common_btn.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/forward_seek.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/mpv_convert_webp.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/play_pause_btn.dart';
+import 'package:PiliPlus/plugin/pl_player/widgets/stats_overlay.dart';
 import 'package:PiliPlus/utils/android/bindings.g.dart';
 import 'package:PiliPlus/utils/cache_manager.dart';
 import 'package:PiliPlus/utils/connectivity_utils.dart';
@@ -328,6 +329,20 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       ),
       trackpadScrollCausesScale: false,
     );
+
+    if (PlatformUtils.isDesktop) {
+      HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    }
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.f8) {
+        plPlayerController.toggleStats();
+        return true;
+      }
+    }
+    return false;
   }
 
   @override
@@ -386,6 +401,9 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     _removeDmAction();
     if (PlatformUtils.isMobile) {
       FlutterVolumeController.removeListener();
+    }
+    if (PlatformUtils.isDesktop) {
+      HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     }
     super.dispose();
   }
@@ -1367,6 +1385,13 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
         if (widget.danmuWidget case final danmaku?)
           Positioned.fill(top: 4, child: danmaku),
+
+        Obx(() {
+          if (!plPlayerController.showStats.value) {
+            return const SizedBox.shrink();
+          }
+          return StatsOverlay(controller: plPlayerController);
+        }),
 
         if (!isLive)
           Positioned.fill(
