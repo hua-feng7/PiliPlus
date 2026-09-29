@@ -809,6 +809,9 @@ class HeaderControlState extends State<HeaderControl>
   }) {
     final hwdec = player.getProperty('hwdec-current');
     final volume = player.getProperty('volume');
+    final dropCount = player.getProperty('decoder-frame-drop-count') ??
+        player.getProperty('frame-drop-count');
+    final estimatedFps = player.getProperty('estimated-vf-fps');
     showDialog(
       context: context,
       builder: (context) {
@@ -884,6 +887,20 @@ class HeaderControlState extends State<HeaderControl>
                       subtitle: Text(hwdec),
                       onTap: () => Utils.copyText('hwdec\n$hwdec'),
                     ),
+                    if (dropCount != null)
+                      ListTile(
+                        dense: true,
+                        title: const Text('Dropped Frames (解码丢帧数)'),
+                        subtitle: Text(dropCount),
+                        onTap: () => Utils.copyText('Dropped Frames\n$dropCount'),
+                      ),
+                    if (estimatedFps != null)
+                      ListTile(
+                        dense: true,
+                        title: const Text('Estimated FPS (实时输出帧率)'),
+                        subtitle: Text(estimatedFps),
+                        onTap: () => Utils.copyText('Estimated FPS\n$estimatedFps'),
+                      ),
                   ],
                 ),
               ),
