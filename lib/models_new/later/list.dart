@@ -24,6 +24,19 @@ class LaterItemModel with MultiSelectData {
   Bangumi? bangumi;
   int? cid;
   int? progress;
+
+  /// The later API uses seconds as the progress unit
+  /// while the player expects milliseconds.
+  ///
+  /// The later API uses `-1` to indicate that the video has been fully watched.
+  /// When reopened, playback should start from the beginning to avoid resuming from
+  /// the last playback position associated with the video streaming account.
+  int? get playbackProgress {
+    final progress = this.progress;
+    if (progress == null) return null;
+    return progress == -1 ? 0 : progress * Duration.millisecondsPerSecond;
+  }
+
   String? bvid;
   bool? isPgc;
   String? pgcLabel;

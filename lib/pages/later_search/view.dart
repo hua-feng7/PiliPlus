@@ -82,6 +82,7 @@ class _LaterSearchPageState
               cover: item.pic,
               title: item.title,
               dimension: item.dimension,
+              progress: item.playbackProgress,
               extraArguments: enablePlayAll
                   ? {
                       'oid': item.aid,

@@ -684,6 +684,10 @@ abstract final class PageUtils {
             episodes,
             epId: response.userStatus?.progress?.lastEpId,
           );
+          final pgcProgress = progress ??
+              (episode.epId == response.userStatus?.progress?.lastEpId
+                  ? response.userStatus?.progress?.playbackProgress
+                  : null);
           toVideoPage(
             videoType: VideoType.pgc,
             bvid: episode.bvid!,
@@ -692,7 +696,7 @@ abstract final class PageUtils {
             epId: episode.epId,
             pgcType: response.type,
             cover: episode.cover,
-            progress: progress,
+            progress: pgcProgress,
             extraArguments: {
               'pgcItem': response,
             },
@@ -741,6 +745,10 @@ abstract final class PageUtils {
             epId: epId ?? response.userStatus?.progress?.lastEpId,
             isPgc: false,
           );
+          final pugvProgress = progress ??
+              (episode.id == response.userStatus?.progress?.lastEpId
+                  ? response.userStatus?.progress?.playbackProgress
+                  : null);
           toVideoPage(
             videoType: VideoType.pugv,
             aid: episode.aid!,
@@ -748,7 +756,7 @@ abstract final class PageUtils {
             seasonId: response.seasonId,
             epId: episode.id,
             cover: episode.cover,
-            progress: progress,
+            progress: pugvProgress,
             extraArguments: {
               'pgcItem': response,
             },

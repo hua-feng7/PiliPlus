@@ -32,6 +32,7 @@ import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
 import 'package:PiliPlus/models_new/video/video_detail/data.dart';
 import 'package:PiliPlus/models_new/video/video_detail/episode.dart' as ugc;
 import 'package:PiliPlus/models_new/video/video_pbp/data.dart';
+import 'package:PiliPlus/models_new/video/video_play_info/data.dart';
 import 'package:PiliPlus/models_new/video/video_play_info/subtitle.dart';
 import 'package:PiliPlus/models_new/video/video_stein_edgeinfo/data.dart';
 import 'package:PiliPlus/pages/audio/view.dart';
@@ -776,7 +777,7 @@ class VideoDetailController extends GetxController
     }
 
     if (!isFileSource) {
-      if (vttSubtitlesIndex.value == -1) {
+      if (playInfoData == null && vttSubtitlesIndex.value == -1) {
         _queryPlayInfo();
       }
 
@@ -864,6 +865,16 @@ class VideoDetailController extends GetxController
       preferCodecs = isWiFi ? Pref.preferCodecs : Pref.preferCodecsCellular;
     }
 
+    final bool needPlayInfo = !isFileSource && cid.value != 0;
+    final playInfoFuture = needPlayInfo
+        ? VideoHttp.playInfo(
+            bvid: bvid,
+            cid: cid.value,
+            seasonId: seasonId,
+            epId: epId,
+          )
+        : null;
+
     final result = await _getVideoUrl(VideoQuality.hdrVivid.code);
 
     if (result case Success(:final response)) {
@@ -875,12 +886,35 @@ class VideoDetailController extends GetxController
 
       volume = data.volume;
 
+      if (playInfoFuture != null) {
+        try {
+          if (await playInfoFuture case Success(response: final playInfoRes)) {
+            playInfoData = playInfoRes;
+            if (await _handlePlayInfo(playInfoRes)) {
+              return;
+            }
+          }
+        } catch (_) {}
+      }
+
       if (!fromReset) {
         final progress = args.remove('progress');
         if (progress != null) {
           defaultST = Duration(milliseconds: progress);
         } else {
-          defaultST = Duration(milliseconds: data.lastPlayTime);
+          final lastPlayTime = playInfoData?.lastPlayTime;
+          if (lastPlayTime != null && lastPlayTime > 0) {
+            if (data.timeLength != null &&
+                lastPlayTime >= data.timeLength! - 2000) {
+              defaultST = Duration.zero;
+            } else {
+              defaultST = Duration(milliseconds: lastPlayTime);
+            }
+          } else if (Accounts.heartbeat == Accounts.video) {
+            defaultST = Duration(milliseconds: data.lastPlayTime);
+          } else {
+            defaultST = Duration.zero;
+          }
         }
       }
 
@@ -1114,6 +1148,8 @@ class VideoDetailController extends GetxController
     }
   }
 
+  int? lastPlayCid;
+  PlayInfoData? playInfoData;
   late bool continuePlayingPart = Pref.continuePlayingPart;
 
   Future<void> _queryPlayInfo() async {
@@ -1129,79 +1165,88 @@ class VideoDetailController extends GetxController
       epId: epId,
     );
     if (res case Success(:final response)) {
-      // interactive video
-      if (isUgc && graphVersion == null) {
-        try {
-          if (ugcIntroCtr.videoDetail.value.rights?.isSteinGate == 1) {
-            graphVersion = response.interaction?.graphVersion;
-            getSteinEdgeInfo();
-          }
-        } catch (e) {
-          if (kDebugMode) debugPrint('handle stein: $e');
-        }
-      }
+      playInfoData = response;
+      await _handlePlayInfo(response);
+    }
+  }
 
-      if (isUgc && continuePlayingPart) {
-        continuePlayingPart = false;
-        final lastCid = response.lastPlayCid;
-        if (lastCid != null && lastCid != 0 && lastCid != cid.value) {
-          try {
-            final pages = ugcIntroCtr.videoDetail.value.pages;
-            if (pages != null && pages.length > 1) {
-              final index = pages.indexWhere((item) => item.cid == lastCid);
-              if (index != -1) {
-                onAddItem(index);
-              }
-            }
-          } catch (_) {}
-        }
-      }
+  Future<bool> _handlePlayInfo(PlayInfoData response) async {
+    lastPlayCid = response.lastPlayCid;
 
-      if (plPlayerController.showViewPoints &&
-          response.viewPoints?.firstOrNull?.type == 2) {
-        try {
-          viewPointList.value = response.viewPoints!.map((item) {
-            final end = (item.to! / (data.timeLength! / 1000)).clamp(0.0, 1.0);
-            return ViewPointSegment(
-              end: end,
-              title: item.content,
-              url: item.imgUrl,
-              from: item.from,
-              to: item.to,
-            );
-          }).toList();
-        } catch (_) {}
-      }
-
-      if (response.subtitle?.subtitles case final sub? when (sub.isNotEmpty)) {
-        _setSubtitle(sub);
-      } else if (!Accounts.main.isLogin) {
-        final res = await DmGrpc.dmView(aid, cid.value);
-        if (res case Success(:final response)) {
-          if (response.hasSubtitle() &&
-              response.subtitle.subtitles.isNotEmpty) {
-            _setSubtitle(
-              response.subtitle.subtitles
-                  .map(
-                    (i) => Subtitle(
-                      lan: i.lan,
-                      lanDoc: i.lanDoc,
-                      subtitleUrl: i.subtitleUrl.replaceFirst(
-                        RegExp('^https?:'),
-                        '',
-                      ),
-                      isAi: i.type == .AI,
-                    ),
-                  )
-                  .toList()
-                ..sort(),
-            );
-          }
-        } else {
-          res.toast();
+    // interactive video
+    if (isUgc && graphVersion == null) {
+      try {
+        if (ugcIntroCtr.videoDetail.value.rights?.isSteinGate == 1) {
+          graphVersion = response.interaction?.graphVersion;
+          getSteinEdgeInfo();
         }
+      } catch (e) {
+        if (kDebugMode) debugPrint('handle stein: $e');
       }
     }
+
+    if (isUgc && continuePlayingPart) {
+      final lastCid = response.lastPlayCid;
+      if (lastCid != null && lastCid != 0 && lastCid != cid.value) {
+        try {
+          final pages = ugcIntroCtr.videoDetail.value.pages;
+          if (pages != null && pages.length > 1) {
+            final index = pages.indexWhere((item) => item.cid == lastCid);
+            if (index != -1) {
+              continuePlayingPart = false;
+              onAddItem(index);
+              return true;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (plPlayerController.showViewPoints &&
+        response.viewPoints?.firstOrNull?.type == 2) {
+      try {
+        viewPointList.value = response.viewPoints!.map((item) {
+          final end = (item.to! / (data.timeLength! / 1000)).clamp(0.0, 1.0);
+          return ViewPointSegment(
+            end: end,
+            title: item.content,
+            url: item.imgUrl,
+            from: item.from,
+            to: item.to,
+          );
+        }).toList();
+      } catch (_) {}
+    }
+
+    if (response.subtitle?.subtitles case final sub? when (sub.isNotEmpty)) {
+      _setSubtitle(sub);
+    } else if (!Accounts.main.isLogin) {
+      final res = await DmGrpc.dmView(aid, cid.value);
+      if (res case Success(:final response)) {
+        if (response.hasSubtitle() &&
+            response.subtitle.subtitles.isNotEmpty) {
+          _setSubtitle(
+            response.subtitle.subtitles
+                .map(
+                  (i) => Subtitle(
+                    lan: i.lan,
+                    lanDoc: i.lanDoc,
+                    subtitleUrl: i.subtitleUrl.replaceFirst(
+                      RegExp('^https?:'),
+                      '',
+                    ),
+                    isAi: i.type == .AI,
+                  ),
+                )
+                .toList()
+              ..sort(),
+          );
+        }
+      } else {
+        res.toast();
+      }
+    }
+    return false;
   }
 
   Future<void> _setSubtitle(List<Subtitle> sub) async {
@@ -1282,6 +1327,8 @@ class VideoDetailController extends GetxController
     defaultST = null;
     videoUrl = null;
     audioUrl = null;
+    playInfoData = null;
+    lastPlayCid = null;
 
     // danmaku
     savedDanmaku = null;

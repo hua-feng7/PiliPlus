@@ -60,6 +60,7 @@ class VideoCardVMemberHome extends StatelessWidget {
             cover: videoItem.cover,
             title: videoItem.title,
             dimension: dimension,
+            progress: videoItem.history?.playbackProgress,
           );
         }
         break;

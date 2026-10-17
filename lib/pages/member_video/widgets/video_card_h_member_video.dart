@@ -71,6 +71,7 @@ class VideoCardHMemberVideo extends StatelessWidget {
                     cover: videoItem.cover,
                     title: videoItem.title,
                     isVertical: isVertical,
+                    progress: videoItem.history?.playbackProgress,
                   );
                 },
             child: Padding(

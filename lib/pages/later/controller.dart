@@ -171,6 +171,7 @@ class LaterController extends MultiSelectController<LaterData, LaterItemModel>
             cover: item.pic,
             title: item.title,
             dimension: item.dimension,
+            progress: item.playbackProgress,
             extraArguments: {
               'sourceType': SourceType.watchLater,
               'count': baseCtr.counts[LaterViewType.all.index],

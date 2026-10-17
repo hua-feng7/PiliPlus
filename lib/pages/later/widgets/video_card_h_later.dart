@@ -185,14 +185,23 @@ Future<void> onPushLater(
   ValueChanged<int>? onViewLater,
 }) async {
   if (item.isPugv ?? false) {
-    PageUtils.viewPugv(seasonId: item.aid);
+    PageUtils.viewPugv(
+      seasonId: item.aid,
+      progress: item.playbackProgress,
+    );
     return;
   }
   if (item.isPgc ?? false) {
     if (item.bangumi?.epId != null) {
-      PageUtils.viewPgc(epId: item.bangumi!.epId);
+      PageUtils.viewPgc(
+        epId: item.bangumi!.epId,
+        progress: item.playbackProgress,
+      );
     } else if (item.redirectUrl?.isNotEmpty == true) {
-      PageUtils.viewPgcFromUri(item.redirectUrl!);
+      PageUtils.viewPgcFromUri(
+        item.redirectUrl!,
+        progress: item.playbackProgress,
+      );
     }
     return;
   }
@@ -213,6 +222,7 @@ Future<void> onPushLater(
           cover: item.pic,
           title: item.title,
           dimension: item.dimension,
+          progress: item.playbackProgress,
           extraArguments: const {'viewLater': true},
         );
       }

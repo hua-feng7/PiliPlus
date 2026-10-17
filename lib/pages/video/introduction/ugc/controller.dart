@@ -127,8 +127,22 @@ class UgcIntroController extends CommonIntroController with ReloadMixin {
         }
       } catch (_) {}
       final pages = videoDetail.value.pages;
-      if (pages != null && pages.isNotEmpty && cid.value == 0) {
-        cid.value = pages.first.cid!;
+      if (pages != null && pages.isNotEmpty) {
+        if (cid.value == 0) {
+          cid.value = pages.first.cid!;
+        }
+        if (videoDetailCtr.continuePlayingPart) {
+          final lastCid = videoDetailCtr.lastPlayCid;
+          if (lastCid != null && lastCid != 0 && lastCid != cid.value) {
+            if (pages.length > 1) {
+              final index = pages.indexWhere((item) => item.cid == lastCid);
+              if (index != -1) {
+                videoDetailCtr.continuePlayingPart = false;
+                videoDetailCtr.onAddItem(index);
+              }
+            }
+          }
+        }
       }
       queryUserStat(response.staff);
     } else {
