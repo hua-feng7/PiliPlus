@@ -199,7 +199,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         introController.startTimer();
         ctr.showDanmaku = true;
       }
-    } else if (state == .paused) {
+    } else if (const <AppLifecycleState>[.paused, .hidden].contains(state)) {
       introController.cancelTimer();
       ctr.showDanmaku = false;
     }

@@ -151,6 +151,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   Offset? _initialFocalPoint;
 
   bool _pauseDueToPauseUponEnteringBackgroundMode = false;
+  bool _videoDisabledDueToBackgroundMode = false;
 
   StreamSubscription? _brightnessListener;
   void _onBrightnessChanged(double value) {
@@ -335,18 +336,43 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Keep playing in the PiP window.
     if (Platform.isIOS && IOSPipHelper.isActive) return;
-    if (!plPlayerController.continuePlayInBackground.value) {
-      late final player = plPlayerController.videoPlayerController;
-      if (const <AppLifecycleState>[.paused, .detached].contains(state)) {
-        if (player != null && player.state.playing) {
+    final player = plPlayerController.videoPlayerController;
+    if (player == null) return;
+
+    if (const <AppLifecycleState>[.paused, .hidden, .detached].contains(state)) {
+      if (!plPlayerController.continuePlayInBackground.value) {
+        if (player.state.playing) {
           _pauseDueToPauseUponEnteringBackgroundMode = true;
           player.pause();
         }
-      } else {
-        if (_pauseDueToPauseUponEnteringBackgroundMode) {
-          _pauseDueToPauseUponEnteringBackgroundMode = false;
-          player?.play();
+      }
+      // On iOS, background apps cannot use VideoToolbox hardware decoding or OpenGL ES contexts.
+      // Dropping the video track prevents VideoToolbox errors, freezing, and fallback to software decoding.
+      if (Platform.isIOS && !_videoDisabledDueToBackgroundMode) {
+        _videoDisabledDueToBackgroundMode = true;
+        player.setProperty('vid', 'no');
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      if (Platform.isIOS) {
+        if (_videoDisabledDueToBackgroundMode) {
+          _videoDisabledDueToBackgroundMode = false;
+          if (!plPlayerController.onlyPlayAudio.value) {
+            player.setProperty('vid', 'auto');
+          }
         }
+        final hwdec = plPlayerController.hwdec;
+        if (hwdec != null && hwdec != 'no') {
+          player.setProperty('hwdec', hwdec);
+        }
+        if (!plPlayerController.isLive) {
+          player.seek(player.state.position);
+        } else {
+          player.command(const ['seek', '0', 'relative']);
+        }
+      }
+      if (_pauseDueToPauseUponEnteringBackgroundMode) {
+        _pauseDueToPauseUponEnteringBackgroundMode = false;
+        player.play();
       }
     }
   }

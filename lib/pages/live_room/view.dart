@@ -198,7 +198,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
           ..startLiveTimer();
         plPlayerController.showDanmaku = true;
       }
-    } else if (state == .paused) {
+    } else if (const <AppLifecycleState>[.paused, .hidden].contains(state)) {
       _liveRoomController.cancelLiveTimer();
       plPlayerController
         ..showDanmaku = false
