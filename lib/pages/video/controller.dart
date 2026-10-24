@@ -787,6 +787,7 @@ class VideoDetailController extends GetxController
     }
 
     defaultST = null;
+    playedTime = null;
   }
 
   bool isQuerying = false;
@@ -808,8 +809,8 @@ class VideoDetailController extends GetxController
       cid: cid.value,
       bvid: bvid,
       qn: quality,
-      epid: epId,
-      seasonId: seasonId,
+      epid: isUgc ? null : epId,
+      seasonId: isUgc ? null : seasonId,
       tryLook: plPlayerController.tryLook,
       videoType: _actualVideoType ?? videoType,
       language: currLang.value,
@@ -870,8 +871,8 @@ class VideoDetailController extends GetxController
         ? VideoHttp.playInfo(
             bvid: bvid,
             cid: cid.value,
-            seasonId: seasonId,
-            epId: epId,
+            seasonId: isUgc ? null : seasonId,
+            epId: isUgc ? null : epId,
           )
         : null;
 
@@ -890,9 +891,7 @@ class VideoDetailController extends GetxController
         try {
           if (await playInfoFuture case Success(response: final playInfoRes)) {
             playInfoData = playInfoRes;
-            if (await _handlePlayInfo(playInfoRes)) {
-              return;
-            }
+            await _handlePlayInfo(playInfoRes);
           }
         } catch (_) {}
       }
@@ -902,7 +901,16 @@ class VideoDetailController extends GetxController
         if (progress != null) {
           defaultST = Duration(milliseconds: progress);
         } else {
-          final lastPlayTime = playInfoData?.lastPlayTime;
+          final isMultiPart = isUgc
+              ? (ugcIntroCtr.videoDetail.value.pages?.length ?? 0) > 1 ||
+                  ugcIntroCtr.videoDetail.value.ugcSeason != null
+              : true;
+          final lastPlayCid = playInfoData?.lastPlayCid;
+          final isSamePlayInfoCid = lastPlayCid != null && lastPlayCid != 0
+              ? lastPlayCid == cid.value
+              : !isMultiPart;
+          final lastPlayTime =
+              isSamePlayInfoCid ? playInfoData?.lastPlayTime : null;
           if (lastPlayTime != null && lastPlayTime > 0) {
             if (data.timeLength != null &&
                 lastPlayTime >= data.timeLength! - 2000) {
@@ -911,7 +919,23 @@ class VideoDetailController extends GetxController
               defaultST = Duration(milliseconds: lastPlayTime);
             }
           } else if (Accounts.heartbeat == Accounts.video) {
-            defaultST = Duration(milliseconds: data.lastPlayTime);
+            final dataLastPlayCid = data.lastPlayCid;
+            final isSameDataCid =
+                dataLastPlayCid != null && dataLastPlayCid != 0
+                    ? dataLastPlayCid == cid.value
+                    : !isMultiPart;
+            final streamLastPlayTime =
+                isSameDataCid ? data.lastPlayTime : 0;
+            if (streamLastPlayTime > 0) {
+              if (data.timeLength != null &&
+                  streamLastPlayTime >= data.timeLength! - 2000) {
+                defaultST = Duration.zero;
+              } else {
+                defaultST = Duration(milliseconds: streamLastPlayTime);
+              }
+            } else {
+              defaultST = Duration.zero;
+            }
           } else {
             defaultST = Duration.zero;
           }
@@ -1161,8 +1185,8 @@ class VideoDetailController extends GetxController
     final res = await VideoHttp.playInfo(
       bvid: bvid,
       cid: cid.value,
-      seasonId: seasonId,
-      epId: epId,
+      seasonId: isUgc ? null : seasonId,
+      epId: isUgc ? null : epId,
     );
     if (res case Success(:final response)) {
       playInfoData = response;
@@ -1170,7 +1194,7 @@ class VideoDetailController extends GetxController
     }
   }
 
-  Future<bool> _handlePlayInfo(PlayInfoData response) async {
+  Future<void> _handlePlayInfo(PlayInfoData response) async {
     lastPlayCid = response.lastPlayCid;
 
     // interactive video
@@ -1195,7 +1219,6 @@ class VideoDetailController extends GetxController
             if (index != -1) {
               continuePlayingPart = false;
               onAddItem(index);
-              return true;
             }
           }
         } catch (_) {}
@@ -1246,7 +1269,6 @@ class VideoDetailController extends GetxController
         res.toast();
       }
     }
-    return false;
   }
 
   Future<void> _setSubtitle(List<Subtitle> sub) async {
@@ -1323,6 +1345,7 @@ class VideoDetailController extends GetxController
       cacheLocalProgress();
     }
 
+    continuePlayingPart = false;
     playedTime = null;
     defaultST = null;
     videoUrl = null;
