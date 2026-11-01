@@ -1,0 +1,108 @@
+name: Auto Sync Upstream and Release
+
+on:
+    schedule:
+        # Runs at 00:00 UTC every 3 days
+        - cron: "0 0 */3 * *"
+    workflow_dispatch:
+        inputs:
+            force:
+                description: "Force trigger build even if upstream has no new commits"
+                required: false
+                default: false
+                type: boolean
+
+permissions:
+    contents: write
+    actions: write
+    issues: write
+
+jobs:
+    sync-and-dispatch:
+        name: Sync Upstream & Trigger Release
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Configure Git
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            - name: Fetch upstream
+              run: |
+                  git remote add upstream https://github.com/bggRGjQaUbCoE/PiliPlus.git || true
+                  git fetch upstream main --tags
+
+            - name: Check for upstream changes
+              id: check_sync
+              run: |
+                  UPSTREAM_REV=$(git rev-parse upstream/main)
+                  MERGE_BASE=$(git merge-base HEAD upstream/main)
+
+                  echo "HEAD: $(git rev-parse HEAD)"
+                  echo "Upstream main: $UPSTREAM_REV"
+                  echo "Merge base: $MERGE_BASE"
+
+                  if [ "$UPSTREAM_REV" = "$MERGE_BASE" ] && [ "${{ inputs.force }}" != "true" ]; then
+                    echo "Upstream has no new commits. Skipping."
+                    echo "has_changes=false" >> $GITHUB_OUTPUT
+                  else
+                    echo "New commits detected in upstream or force build requested."
+                    echo "has_changes=true" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Merge upstream and Push
+              id: merge_push
+              if: steps.check_sync.outputs.has_changes == 'true'
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  # Attempt to merge upstream/main
+                  if ! git merge upstream/main -m "chore(sync): sync upstream changes"; then
+                    echo "::error::Merge conflict detected when syncing upstream/main."
+                    git merge --abort
+                    gh issue create \
+                      --title "⚠️ 自动同步上游代码冲突告警 (Auto-sync conflict)" \
+                      --body "每3天定时同步任务在合并上游最新提交时遇到代码冲突，已中止合并。请手动拉取代码并解决冲突后重新发布。" || true
+                    exit 1
+                  fi
+
+                  # Determine release tag
+                  UPSTREAM_TAG=$(git tag --points-at upstream/main | head -n1 || echo "")
+                  if [ -n "$UPSTREAM_TAG" ]; then
+                    TAG="v${UPSTREAM_TAG#v}"
+                  else
+                    PUB_VER=$(grep -E '^\s*version:' pubspec.yaml | head -n1 | sed -E 's/.*version:\s*([0-9.]+).*/\1/')
+                    TAG="v${PUB_VER}"
+                  fi
+
+                  if git rev-parse "$TAG" >/dev/null 2>&1; then
+                    TAG="${TAG}-$(date +'%Y%m%d%H%M')"
+                  fi
+
+                  echo "Release Tag: $TAG"
+                  echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+                  # Create tag and push
+                  git tag "$TAG"
+                  git push origin main --tags
+
+            - name: Trigger Build Workflow
+              if: steps.check_sync.outputs.has_changes == 'true'
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  echo "Dispatching build.yml with tag ${{ steps.merge_push.outputs.tag }}..."
+                  gh workflow run build.yml \
+                    -r main \
+                    -f tag="${{ steps.merge_push.outputs.tag }}" \
+                    -f build_android=true \
+                    -f build_ios=true \
+                    -f build_win_x64=true \
+                    -f build_mac=true \
+                    -f build_linux_x64=true
