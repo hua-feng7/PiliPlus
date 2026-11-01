@@ -575,6 +575,7 @@ abstract final class PageUtils {
     int? progress, // milliseconds
     int? aid,
     bool off = false,
+    bool viewLater = false,
   }) {
     RegExpMatch? match = _pgcRegex.firstMatch(uri);
     if (match != null) {
@@ -583,17 +584,19 @@ abstract final class PageUtils {
       if (isPgc) {
         viewPgc(
           seasonId: isSeason ? id : null,
-          epId: isSeason ? null : id,
+          epId: isSeason ? null : .parse(id),
           progress: progress,
           off: off,
+          viewLater: viewLater,
         );
       } else {
         viewPugv(
           seasonId: isSeason ? id : null,
-          epId: isSeason ? null : id,
+          epId: isSeason ? null : .parse(id),
           aid: aid,
           progress: progress,
           off: off,
+          viewLater: viewLater,
         );
       }
       return true;
@@ -618,100 +621,45 @@ abstract final class PageUtils {
   }
 
   static Future<void> viewPgc({
-    dynamic seasonId,
-    dynamic epId,
+    Object? seasonId,
+    int? epId,
     int? progress, // milliseconds
     bool off = false,
+    bool viewLater = false,
   }) async {
     try {
       SmartDialog.showLoading(msg: '资源获取中');
       final res = await SearchHttp.pgcInfo(seasonId: seasonId, epId: epId);
       SmartDialog.dismiss();
       if (res case Success(:final response)) {
-        final episodes = response.episodes;
-        final hasEpisode = episodes != null && episodes.isNotEmpty;
+        final (EpisodeItem? episode, int? sectionIndex) = response.findEpisode(
+          epId,
+        );
 
-        EpisodeItem? episode;
-
-        void viewSection(EpisodeItem episode) {
-          toVideoPage(
-            videoType: VideoType.ugc,
-            bvid: episode.bvid!,
-            cid: episode.cid!,
-            seasonId: response.seasonId,
-            epId: episode.epId,
-            cover: episode.cover,
-            title: episode.title,
-            progress: progress,
-            extraArguments: {
-              'pgcApi': true,
-              'pgcItem': response,
-            },
-            off: off,
-          );
-        }
-
-        if (epId != null) {
-          epId = epId.toString();
-          if (hasEpisode) {
-            episode = episodes.firstWhereOrNull(
-              (item) => item.epId.toString() == epId,
-            );
-          }
-
-          // find section
-          if (episode == null) {
-            final sections = response.section;
-            if (sections != null && sections.isNotEmpty) {
-              for (final section in sections) {
-                final episodes = section.episodes;
-                if (episodes != null && episodes.isNotEmpty) {
-                  for (final episode in episodes) {
-                    if (episode.epId.toString() == epId) {
-                      // view as ugc
-                      viewSection(episode);
-                      return;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        if (hasEpisode) {
-          episode ??= findEpisode(
-            episodes,
-            epId: response.userStatus?.progress?.lastEpId,
-          );
+        if (episode != null) {
           final pgcProgress = progress ??
               (episode.epId == response.userStatus?.progress?.lastEpId
                   ? response.userStatus?.progress?.playbackProgress
                   : null);
           toVideoPage(
-            videoType: VideoType.pgc,
+            videoType: .pgc,
             bvid: episode.bvid!,
             cid: episode.cid!,
-            seasonId: response.seasonId,
-            epId: episode.epId,
-            pgcType: response.type,
+            seasonId: response.seasonId!,
+            epId: episode.epId!,
             cover: episode.cover,
+            title: episode.title,
             progress: pgcProgress,
             extraArguments: {
               'pgcItem': response,
+              if (viewLater) 'viewLater': true,
+              'sectionIndex': ?sectionIndex,
             },
             off: off,
           );
-          return;
         } else {
-          episode ??= response.section?.firstOrNull?.episodes?.firstOrNull;
-          if (episode != null) {
-            viewSection(episode);
-            return;
-          }
+          SmartDialog.showToast('剧集为空');
         }
-
-        SmartDialog.showToast('资源加载失败');
       } else {
         res.toast();
       }
@@ -723,11 +671,12 @@ abstract final class PageUtils {
   }
 
   static Future<void> viewPugv({
-    dynamic seasonId,
-    dynamic epId,
+    Object? seasonId,
+    int? epId,
     int? aid,
     int? progress, // milliseconds
     bool off = false,
+    bool viewLater = false,
   }) async {
     try {
       SmartDialog.showLoading(msg: '资源获取中');
@@ -739,26 +688,28 @@ abstract final class PageUtils {
           EpisodeItem? episode;
           if (aid != null) {
             episode = episodes.firstWhereOrNull((e) => e.aid == aid);
+          } else {
+            epId ??= response.userStatus?.progress?.lastEpId;
+            if (epId != null) {
+              episode = episodes.firstWhereOrNull((e) => e.id == epId);
+            }
           }
-          episode ??= findEpisode(
-            episodes,
-            epId: epId ?? response.userStatus?.progress?.lastEpId,
-            isPgc: false,
-          );
+          episode ??= episodes.first;
           final pugvProgress = progress ??
               (episode.id == response.userStatus?.progress?.lastEpId
                   ? response.userStatus?.progress?.playbackProgress
                   : null);
           toVideoPage(
-            videoType: VideoType.pugv,
+            videoType: .pugv,
             aid: episode.aid!,
             cid: episode.cid!,
-            seasonId: response.seasonId,
-            epId: episode.id,
+            seasonId: response.seasonId!,
+            epId: episode.id!,
             cover: episode.cover,
             progress: pugvProgress,
             extraArguments: {
               'pgcItem': response,
+              if (viewLater) 'viewLater': true,
             },
             off: off,
           );
