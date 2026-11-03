@@ -871,13 +871,11 @@ class VideoDetailController extends GetxController
       preferCodecs = isWiFi ? Pref.preferCodecs : Pref.preferCodecsCellular;
     }
 
-    final bool needPlayInfo = !isFileSource && cid.value != 0;
+    final bool needPlayInfo = isUgc && !isFileSource && cid.value != 0;
     final playInfoFuture = needPlayInfo
         ? VideoHttp.playInfo(
             bvid: bvid,
             cid: cid.value,
-            seasonId: isUgc ? null : seasonId,
-            epId: isUgc ? null : epId,
           )
         : null;
 
@@ -905,11 +903,11 @@ class VideoDetailController extends GetxController
         final progress = args.remove('progress');
         if (progress != null) {
           defaultST = Duration(milliseconds: progress);
+        } else if (!isUgc) {
+          defaultST = Duration(milliseconds: data.lastPlayTime);
         } else {
-          final isMultiPart = isUgc
-              ? (ugcIntroCtr.videoDetail.value.pages?.length ?? 0) > 1 ||
-                  ugcIntroCtr.videoDetail.value.ugcSeason != null
-              : true;
+          final isMultiPart = (ugcIntroCtr.videoDetail.value.pages?.length ?? 0) > 1 ||
+              ugcIntroCtr.videoDetail.value.ugcSeason != null;
           final lastPlayCid = playInfoData?.lastPlayCid;
           final isSamePlayInfoCid = lastPlayCid != null && lastPlayCid != 0
               ? lastPlayCid == cid.value
