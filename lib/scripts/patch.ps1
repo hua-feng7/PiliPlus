@@ -317,3 +317,20 @@ foreach ($patch in $patches_cupertino) {
         throw "$LASTEXITCODE"
     }
 }
+if ($platform.ToLower() -eq "ios") {
+    # Fix SDK compatibility for GitHub-hosted runners
+    Get-ChildItem -Path "$PubCacheDir/hosted/pub.dev" -Filter "FPPDeviceInfoPlusPlugin.m" -Recurse | ForEach-Object {
+        $txt = Get-Content $_.FullName -Raw
+        $txt = $txt -replace 'isiOSAppOnVision', 'isiOSAppOnMac'
+        Set-Content -Path $_.FullName -Value $txt -NoNewline
+        Write-Host "Patched FPPDeviceInfoPlusPlugin.m for iOS SDK compatibility"
+    }
+    Get-ChildItem -Path "$PubCacheDir/hosted/pub.dev" -Filter "PathMonitorConnectivityProvider.swift" -Recurse | ForEach-Object {
+        $txt = Get-Content $_.FullName -Raw
+        $txt = $txt -replace 'path\.isUltraConstrained', 'false'
+        Set-Content -Path $_.FullName -Value $txt -NoNewline
+        Write-Host "Patched PathMonitorConnectivityProvider.swift for iOS SDK compatibility"
+    }
+}
+
+Set-Location $env:GITHUB_WORKSPACE
