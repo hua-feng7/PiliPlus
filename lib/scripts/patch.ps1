@@ -321,7 +321,7 @@ if ($platform.ToLower() -eq "ios") {
     # Fix SDK compatibility for GitHub-hosted runners
     Get-ChildItem -Path "$PubCacheDir/hosted/pub.dev" -Filter "FPPDeviceInfoPlusPlugin.m" -Recurse | ForEach-Object {
         $txt = Get-Content $_.FullName -Raw
-        $txt = $txt -replace 'isiOSAppOnVision', 'isiOSAppOnMac'
+        $txt = $txt -replace '\[info isiOSAppOnVision\]', 'NO'
         Set-Content -Path $_.FullName -Value $txt -NoNewline
         Write-Host "Patched FPPDeviceInfoPlusPlugin.m for iOS SDK compatibility"
     }
