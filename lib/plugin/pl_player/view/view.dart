@@ -344,7 +344,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       if (!plPlayerController.continuePlayInBackground.value) {
         if (player.state.playing) {
           _pauseDueToPauseUponEnteringBackgroundMode = true;
-          player.pause();
+          plPlayerController.pause();
         }
       }
       // On iOS, background apps cannot use VideoToolbox hardware decoding or OpenGL ES contexts.
@@ -373,7 +373,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       }
       if (_pauseDueToPauseUponEnteringBackgroundMode) {
         _pauseDueToPauseUponEnteringBackgroundMode = false;
-        player.play();
+        plPlayerController.play();
       }
     }
   }
@@ -898,7 +898,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     final List<BottomControlType> userSpecifyItemRight = [
       if (isNotFileSource && plPlayerController.showDmChart) .dmChart,
       if (plPlayerController.isAnim) .superResolution,
-      if (isNotFileSource && plPlayerController.showViewPoints) .viewPoints,
+      if (plPlayerController.showViewPoints) .viewPoints,
       if (isNotFileSource && anySeason) .episode,
       if (flag) .fit,
       if (isNotFileSource) .aiTranslate,
