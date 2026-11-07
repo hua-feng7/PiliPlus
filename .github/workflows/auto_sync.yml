@@ -28,10 +28,13 @@ jobs:
                   fetch-depth: 0
                   token: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Configure Git
+            - name: Configure Git and GitHub CLI
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  gh repo set-default "${{ github.repository }}"
 
             - name: Fetch upstream
               run: |
@@ -67,6 +70,7 @@ jobs:
                     echo "::error::Merge conflict detected when syncing upstream/main."
                     git merge --abort
                     gh issue create \
+                      -R "${{ github.repository }}" \
                       --title "⚠️ 自动同步上游代码冲突告警 (Auto-sync conflict)" \
                       --body "每3天定时同步任务在合并上游最新提交时遇到代码冲突，已中止合并。请手动拉取代码并解决冲突后重新发布。" || true
                     exit 1
@@ -99,6 +103,7 @@ jobs:
               run: |
                   echo "Dispatching build.yml with tag ${{ steps.merge_push.outputs.tag }}..."
                   gh workflow run build.yml \
+                    -R "${{ github.repository }}" \
                     -r main \
                     -f tag="${{ steps.merge_push.outputs.tag }}" \
                     -f build_android=true \
