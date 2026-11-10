@@ -360,15 +360,17 @@ class VideoDetailController extends GetxController
     // block
     _initLocalSkipIfNeeded();
     // viewPoint
-    final viewPoints = entry.viewPoints;
-    if (viewPoints != null && viewPoints.isNotEmpty) {
-      try {
-        final duration = (entry.totalTimeMilli / 1000);
-        viewPointList.value = viewPoints
-            .map((e) => e.toSegment(duration))
-            .toList();
-      } catch (_) {
-        if (kDebugMode) rethrow;
+    if (plPlayerController.showViewPoints) {
+      final viewPoints = entry.viewPoints;
+      if (viewPoints != null && viewPoints.isNotEmpty) {
+        try {
+          final duration = (entry.totalTimeMilli / 1000);
+          viewPointList.value = viewPoints
+              .map((e) => e.toSegment(duration))
+              .toList();
+        } catch (_) {
+          if (kDebugMode) rethrow;
+        }
       }
     }
     // subtitle
@@ -377,6 +379,8 @@ class VideoDetailController extends GetxController
       this.subtitles.assignAll(subtitles);
       vttSubtitlesIndex.value = 0;
     }
+    // volume
+    volume = entry.volume;
     firstVideo = VideoItem(
       id: entry.preferedVideoQuality,
       quality: VideoQuality.fromCode(entry.preferedVideoQuality),
@@ -584,8 +588,7 @@ class VideoDetailController extends GetxController
   int get currPosInMilliseconds =>
       defaultST?.inMilliseconds ?? plPlayerController.positionInMilliseconds;
   @override
-  Future<void> seekTo(Duration duration, {required bool isSeek}) =>
-      plPlayerController.seekTo(duration, isSeek: isSeek);
+  Future<void> seekTo(Duration duration) => plPlayerController.seekTo(duration);
 
   @override
   Widget buildItem(Object item, Animation<double> animation) {
@@ -629,7 +632,7 @@ class VideoDetailController extends GetxController
                   }
                   onRemoveItem(listData.indexOf(item), item);
                 } else if (item is SegmentModel) {
-                  onSkip(item, isSeek: false);
+                  onSkip(item);
                   onRemoveItem(listData.indexOf(item), item);
                 }
               },
@@ -1393,6 +1396,9 @@ class VideoDetailController extends GetxController
       viewPointList.clear();
     }
 
+    // volume
+    volume = null;
+
     if (!isFileSource) {
       // language
       languages.value = null;
@@ -1491,7 +1497,7 @@ class VideoDetailController extends GetxController
     try {
       if (plPlayerController.enableBlock) {
         if (listData.lastOrNull case final SegmentModel item) {
-          onSkip(item, isSeek: false);
+          onSkip(item);
           onRemoveItem(listData.indexOf(item), item);
           return true;
         }
