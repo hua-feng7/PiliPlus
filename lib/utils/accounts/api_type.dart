@@ -16,12 +16,17 @@ abstract final class ApiType {
       Api.liveLikeReport,
       Api.mediaListHistory,
       Api.playInfo,
+
+      // live trace
+      Api.liveTraceE,
+      Api.liveTraceX,
       // Api.historyList,
       // Api.pauseHistory,
       // Api.clearHistory,
       // Api.delHistory,
       // Api.searchHistory,
       // Api.historyStatus,
+
       // progress
       Api.pgcInfo,
       Api.pugvInfo,
