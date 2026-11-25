@@ -143,7 +143,7 @@ abstract final class Update {
       }
     } catch (e) {
       if (kDebugMode) debugPrint('download error: $e');
-      PageUtils.launchURL('${Constants.sourceCodeUrl}/releases/latest');
+      PageUtils.launchURL('https://github.com/hua-feng7/PiliPlus/releases/latest');
     }
   }
 }
